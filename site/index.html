@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="A private, local explorer for the people tags in your digiKam photo collection.">
+  <title>People · digiKam collection explorer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23635bff'/%3E%3Ccircle cx='16' cy='15' r='5' fill='white'/%3E%3Ccircle cx='27' cy='17' r='4' fill='%23c7c4ff'/%3E%3Cpath d='M7 31c0-10 18-10 18 0M24 25c7-2 10 2 10 6' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to collection</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#" id="brand-home" aria-label="People, collection overview">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><circle cx="12.5" cy="11.5" r="4.5" fill="currentColor"/><circle cx="23" cy="13.5" r="3.5" fill="currentColor" opacity=".55"/><path d="M4 27c0-11 17-11 17 0" fill="currentColor"/><path d="M21 20c5-1 8 2 8 7h-5" fill="currentColor" opacity=".55"/></svg></span>
+        <span class="brand-name">People<span class="brand-divider"></span><span class="brand-context">digiKam collection explorer</span></span>
+      </a>
+      <div class="header-actions"><span class="local-badge"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="4.5" y="8.5" width="11" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="12.5" r="1" fill="currentColor"/></svg>Private &amp; local</span><button class="icon-button help-button" id="help-button" aria-label="How it works and import instructions" title="How it works">?</button></div>
+    </div>
+  </header>
+  <div class="demo-banner" id="demo-banner" hidden><span><strong>Sample collection</strong><span class="demo-extra"> · Synthetic data, real interactions.</span></span><button id="import-help">Use your own collection <span aria-hidden="true">↗</span></button></div>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="People and group selection">
+      <div class="sidebar-heading"><div class="eyebrow">YOUR COLLECTION</div><div class="sidebar-title-row"><h2>People <span class="count-badge" id="people-count">0</span></h2><span class="tiny-label">TAGGED PHOTOS</span></div></div>
+      <div class="search-box"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="people-search" type="search" placeholder="Find a person…" autocomplete="off" aria-label="Search people"><kbd aria-hidden="true">/</kbd></div>
+      <div class="list-controls"><label class="sort-label">Sort <select id="people-sort" aria-label="Sort people"><option value="count">Most tagged</option><option value="name">Name A–Z</option><option value="recent">Most recent</option></select></label><button class="text-button" id="select-visible" title="Add all visible people to the group">Select visible</button></div>
+      <div class="people-list" id="people-list" aria-label="People"></div>
+      <div class="sidebar-footer"><div class="selection-summary"><span id="selection-count">No people selected</span><button class="text-button" id="clear-selection" hidden>Clear</button></div><button class="primary-button group-button" id="view-group" disabled>Select people to compare</button><p class="selection-hint">Check several names to see photos where <strong>everyone</strong> appears together.</p></div>
+    </aside>
+    <main id="main-content" tabindex="-1"><div id="content"></div><footer class="page-footer"><span><span class="status-dot"></span>Your collection stays on your device.</span><span id="export-date"></span></footer></main>
+  </div>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-header"><div><div class="eyebrow">A LITTLE CONTEXT</div><h2 id="help-title">Behind the numbers</h2></div><button class="icon-button" id="close-help" aria-label="Close help">×</button></div>
+    <div class="dialog-body">
+      <section><h3>What counts as an appearance?</h3><p>One photo per person, regardless of how many face regions are recorded. Non-person tags are excluded. A group means the <strong>intersection</strong>: every selected person must be tagged in the same photo.</p></section>
+      <section><h3>Two ways to read the percentage</h3><p><strong>Tagged photos:</strong> matching photos ÷ all photos with at least one included person tag in that period.</p><p><strong>Person tags:</strong> selected people’s tag occurrences ÷ all included person-tag occurrences in that period. For a group, only photos containing everyone contribute; each selected person contributes one occurrence.</p><p>Periods with no denominator have no percentage, rather than a misleading 0%.</p></section>
+      <section><h3>Dates &amp; companions</h3><p>Timelines use the photo’s recorded capture date, falling back to its album date by default. digiKam does not store when a tag was added in this schema. Undated photos still count in totals and companion rankings, but not in timelines. Companion rankings and the three headline stats cover <strong>all dates</strong>; the year selector filters the timeline only.</p></section>
+      <section class="import-section"><h3>Bring your own collection</h3><p>From the project folder, with Python 3.10 or newer:</p><pre><code>python extract.py /path/to/digikam4.db</code></pre><p>Then reload <code>site/index.html</code>. No Python packages, image files, or internet connection are needed. The database is opened read-only. For a custom People tag:</p><pre><code>python extract.py /path/to/digikam4.db --list-roots
+python extract.py /path/to/digikam4.db --people-root 42</code></pre><p class="muted">See README.md for all options. Exporting replaces the sample data.</p></section>
+      <details class="data-details"><summary>Data quality &amp; this export</summary><div id="data-quality" class="data-quality"></div></details>
+    </div>
+  </dialog>
+  <div class="sr-only" id="announcer" aria-live="polite" aria-atomic="true"></div>
+  <noscript><div class="noscript">This local explorer needs JavaScript enabled. It does not make any network requests.</div></noscript>
+  <script src="./data.js"></script>
+  <script src="./analytics.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
