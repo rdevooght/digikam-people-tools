@@ -13,3 +13,9 @@ wheels/
 site/data.js
 digikam4.db
 digikam4.db*
+recognition.db
+recognition.db*
+
+# local settings and generated reports (contain paths and people's names)
+.env
+reports/

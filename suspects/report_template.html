@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suspect face tags</title>
+<style>
+:root{--bg:#fafaf8;--panel:#fff;--ink:#1d1d1b;--muted:#6a6a64;--line:#dcdcd4;--accent:#b3261e;--ok:#2e7d32;--box:#ffb300;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--panel:#1f1f1c;--ink:#ecece6;--muted:#a0a09a;--line:#3a3a35;--accent:#ff8a80;--ok:#81c784;--box:#ffca28}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:1rem}
+h1{font-size:1.5rem;margin:.5rem 0}h2{font-size:1.15rem;margin:1.5rem 0 .5rem}
+.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;margin:.75rem 0}
+.stats{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:.25rem 0}
+.stats b{font-size:1.1rem}
+.warn{border-color:var(--accent)}
+ol.steps{margin:.25rem 0;padding-left:1.25rem}
+.controls{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin:1rem 0}
+input[type=search]{flex:1 1 14rem;padding:.5rem .7rem;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;margin:.9rem 0}
+.card.reviewed{opacity:.55}
+.card header{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:baseline;justify-content:space-between}
+.card h3{margin:0;font-size:1.15rem}
+.badges{display:flex;gap:.4rem;flex-wrap:wrap}
+.badge{border:1px solid var(--line);border-radius:999px;padding:.05rem .6rem;font-size:.8rem;color:var(--muted)}
+.badge.hot{border-color:var(--accent);color:var(--accent)}
+.body{display:flex;flex-wrap:wrap;gap:1rem;margin-top:.75rem}
+.crop{position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--line);background:#8884;flex:none}
+.crop img{position:absolute;max-width:none}
+.photo{position:relative;flex:none;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#8884}
+.photo img{display:block;width:100%;height:auto}
+.photo .box{position:absolute;border:3px solid var(--box);box-shadow:0 0 0 2px #0008;border-radius:3px}
+.missing{display:flex;align-items:center;justify-content:center;text-align:center;padding:.5rem;font-size:.8rem;color:var(--muted)}
+.info{flex:1 1 18rem;min-width:0}
+.info dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:.15rem .75rem}
+.info dt{color:var(--muted)}
+.info dd{margin:0;overflow-wrap:anywhere}
+code,.path{font:13px ui-monospace,Menlo,Consolas,monospace;background:#8882;padding:.05rem .3rem;border-radius:4px;user-select:all}
+ul.reasons{margin:.6rem 0 0;padding-left:1.1rem}
+ul.reasons li{margin:.15rem 0}
+ul.reasons .pts{color:var(--muted);font-size:.85em}
+details{margin-top:.75rem}
+summary{cursor:pointer;color:var(--muted)}
+.compare{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:.6rem}
+.compare h4{margin:0 0 .3rem;font-size:.9rem}
+.neighbours{display:flex;flex-wrap:wrap;gap:.6rem}
+.neighbour{width:110px;font-size:.75rem;color:var(--muted)}
+label.review{display:inline-flex;gap:.4rem;align-items:center;margin-top:.6rem;cursor:pointer}
+button{font:inherit;padding:.5rem 1rem;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+table{border-collapse:collapse}td,th{padding:.15rem .8rem .15rem 0;text-align:left}
+</style>
+</head>
+<body>
+<main>
+<h1>Suspect face tags</h1>
+<p class="muted" id="generated"></p>
+<div id="warnings"></div>
+<div class="panel"><div class="stats" id="stats"></div></div>
+
+<div class="panel">
+<strong>How to use this report</strong>
+<ol class="steps">
+<li>Start at the top: faces are ordered by how likely they are wrong and how much damage they may do.</li>
+<li>For each card, compare the cropped face with the faces below it (“Compare with similar faces”) and decide.</li>
+<li>To find it in digiKam, open the <b>album folder</b> shown on the card, open the <b>file</b>, and look for the face described under “Where”. The full photo shows where the face is.</li>
+<li>If it is wrong, correct it in digiKam as usual. If it is right, tick “Reviewed” (stored in this browser only).</li>
+<li>This tool never changes digiKam or your photos. Re-run it after you have corrected tags.</li>
+</ol>
+</div>
+
+<div class="controls">
+<input type="search" id="filter" placeholder="Filter by person, folder or file name" aria-label="Filter">
+<label><input type="checkbox" id="hideReviewed"> Hide reviewed</label>
+<span class="muted" id="count"></span>
+</div>
+<div id="list"></div>
+<p><button id="more" hidden>Show more</button></p>
+
+<h2>Training rows without a photo</h2>
+<div class="panel" id="orphans"></div>
+</main>
+
+<script>
+"use strict";
+const DATA = /*__DATA__*/null;
+
+// <geometry>
+// Boxes are in the pixel space of the displayed (rotated-upright) photo.
+function cropGeometry(box, size, side, pad) {
+  const span = Math.max(box[2], box[3]) * pad;
+  const scale = side / span;
+  return {
+    width: size[0] * scale,
+    left: -(box[0] + box[2] / 2 - span / 2) * scale,
+    top: -(box[1] + box[3] / 2 - span / 2) * scale,
+  };
+}
+function boxPercent(box, size) {
+  return {
+    left: box[0] / size[0] * 100, top: box[1] / size[1] * 100,
+    width: box[2] / size[0] * 100, height: box[3] / size[1] * 100,
+  };
+}
+function aspectMismatch(size, naturalWidth, naturalHeight) {
+  return Math.abs((naturalWidth / naturalHeight) / (size[0] / size[1]) - 1) > 0.03;
+}
+// </geometry>
+
+const PAD = 1.7;
+const PAGE = 25;
+const $ = (id) => document.getElementById(id);
+
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else node.setAttribute(key, value);
+  }
+  for (const child of children) if (child) node.append(child);
+  return node;
+}
+
+function missing(face, width, height) {
+  const reason = !face ? "No photo (orphan training row)" : (face.path ? "File not found" : "No collection folder set");
+  const node = el("div", { class: "crop missing", text: reason });
+  node.style.width = width + "px";
+  node.style.height = height + "px";
+  return node;
+}
+
+function faceCrop(face, side) {
+  if (!face.uri) return missing(face, side, side);
+  const wrap = el("div", { class: "crop" });
+  wrap.style.width = wrap.style.height = side + "px";
+  const img = el("img", { src: face.uri, loading: "lazy", decoding: "async", alt: face.person });
+  img.addEventListener("load", () => {
+    const size = face.size || [img.naturalWidth, img.naturalHeight];
+    const g = cropGeometry(face.box, size, side, PAD);
+    img.style.width = g.width + "px";
+    img.style.left = g.left + "px";
+    img.style.top = g.top + "px";
+  });
+  wrap.append(img);
+  return wrap;
+}
+
+function photoWithBox(face, width) {
+  if (!face.uri) return missing(face, width, Math.round(width * 0.66));
+  const wrap = el("div", { class: "photo" });
+  wrap.style.width = width + "px";
+  const img = el("img", { src: face.uri, loading: "lazy", decoding: "async", alt: "Photo " + face.file });
+  const box = el("div", { class: "box" });
+  const note = el("div", { class: "muted", text: "" });
+  img.addEventListener("load", () => {
+    const size = face.size || [img.naturalWidth, img.naturalHeight];
+    const p = boxPercent(face.box, size);
+    Object.assign(box.style, { left: p.left + "%", top: p.top + "%", width: p.width + "%", height: p.height + "%" });
+    if (face.size && aspectMismatch(face.size, img.naturalWidth, img.naturalHeight)) {
+      note.textContent = "The file differs from what digiKam recorded (rotated or edited?): the box may be misplaced.";
+    }
+  });
+  wrap.append(img, box);
+  const outer = el("div", {});
+  outer.append(wrap, note);
+  return outer;
+}
+
+function reviewKey(face) {
+  return "suspect-reviewed:" + face.imageId + ":" + face.box.join(",") + ":" + face.person;
+}
+// Browsers often refuse localStorage for local files, so keep the answers in memory as well.
+const reviewedNow = new Set();
+function isReviewed(face) {
+  if (reviewedNow.has(reviewKey(face))) return true;
+  try { return localStorage.getItem(reviewKey(face)) === "1"; } catch (e) { return false; }
+}
+function setReviewed(face, value) {
+  const key = reviewKey(face);
+  value ? reviewedNow.add(key) : reviewedNow.delete(key);
+  try { value ? localStorage.setItem(key, "1") : localStorage.removeItem(key); } catch (e) { /* storage unavailable */ }
+}
+
+function neighbourList(title, items) {
+  const box = el("div", {}, el("h4", { text: title }));
+  const row = el("div", { class: "neighbours" });
+  for (const n of items) {
+    const face = n.face === null ? null : DATA.faces[n.face];
+    const caption = el("div", { class: "neighbour", text: n.person + " · similarity " + n.similarity.toFixed(2) + (face ? " · " + face.file : " · no photo") });
+    const holder = el("div", {});
+    holder.append(face ? faceCrop(face, 96) : missing(null, 96, 96), caption);
+    row.append(holder);
+  }
+  box.append(row.childNodes.length ? row : el("p", { class: "muted", text: "Nothing to compare." }));
+  return box;
+}
+
+function card(item) {
+  const face = DATA.faces[item.face];
+  const root = el("article", { class: "card" });
+  const badges = el("div", { class: "badges" },
+    el("span", { class: "badge", text: "score " + item.score.toFixed(1) }),
+    item.pulls ? el("span", { class: "badge hot", text: "look-alike for " + item.pulls + " other face" + (item.pulls > 1 ? "s" : "") }) : null);
+  root.append(el("header", {}, el("h3", { text: "#" + item.rank + " · tagged as " + face.person }), badges));
+
+  const info = el("div", { class: "info" });
+  const dl = el("dl", {});
+  const row = (label, value, mono) => dl.append(el("dt", { text: label }), el("dd", {}, mono ? el("span", { class: "path", text: value }) : document.createTextNode(value)));
+  row("Folder", face.album || "(collection root)", true);
+  row("File", face.file, true);
+  row("Where", face.position);
+  if (face.date) row("Taken", face.date);
+  if (face.tagPath) row("Tag", face.tagPath);
+  info.append(dl);
+  const reasons = el("ul", { class: "reasons" });
+  for (const r of item.reasons) {
+    reasons.append(el("li", {}, document.createTextNode(r.text), r.points ? document.createTextNode(" ") : null, r.points ? el("span", { class: "pts", text: "(+" + r.points.toFixed(1) + ")" }) : null));
+  }
+  info.append(reasons);
+
+  const review = el("label", { class: "review" });
+  const box = el("input", { type: "checkbox" });
+  box.checked = isReviewed(face);
+  root.classList.toggle("reviewed", box.checked);
+  box.addEventListener("change", () => {
+    setReviewed(face, box.checked);
+    root.classList.toggle("reviewed", box.checked);
+    root.hidden = box.checked && $("hideReviewed").checked;
+  });
+  review.append(box, document.createTextNode("Reviewed"));
+  info.append(review);
+
+  root.append(el("div", { class: "body" }, faceCrop(face, 170), photoWithBox(face, 320), info));
+
+  if (item.own.length || item.other.length) {
+    const details = el("details", {}, el("summary", { text: "Compare with similar faces" }));
+    let built = false;
+    details.addEventListener("toggle", () => {
+      if (!details.open || built) return;
+      built = true;
+      const parts = [neighbourList("Closest other photos of " + item.ownName, item.own)];
+      if (item.otherName) parts.push(neighbourList("Closest look-alike: " + item.otherName, item.other));
+      details.append(el("div", { class: "compare" }, ...parts));
+    });
+    root.append(details);
+  }
+  root._face = face;
+  root._item = item;
+  return root;
+}
+
+let shown = 0;
+let matching = [];
+function applyFilter() {
+  const text = $("filter").value.trim().toLowerCase();
+  const hide = $("hideReviewed").checked;
+  matching = DATA.suspects.filter((item) => {
+    const f = DATA.faces[item.face];
+    if (hide && isReviewed(f)) return false;
+    return !text || (f.person + " " + f.album + " " + f.file).toLowerCase().includes(text);
+  });
+  $("list").replaceChildren();
+  shown = 0;
+  showMore();
+}
+function showMore() {
+  for (const item of matching.slice(shown, shown + PAGE)) $("list").append(card(item));
+  shown = Math.min(matching.length, shown + PAGE);
+  $("more").hidden = shown >= matching.length;
+  $("count").textContent = matching.length ? "Showing " + shown + " of " + matching.length : "No matching faces.";
+}
+
+function init() {
+  const m = DATA.meta;
+  $("generated").textContent = "Generated " + m.generated + (m.collection ? " · collection " + m.collection : "");
+  const stat = (label, value) => el("div", {}, el("b", { text: Number(value).toLocaleString() }), document.createTextNode(" " + label));
+  $("stats").append(
+    stat("confirmed faces", m.confirmedFaces), stat("used for training", m.trainedFaces),
+    stat("flagged", m.flagged), stat("shown", m.shown));
+  if (m.untrainedFaces) {
+    $("stats").append(el("div", { class: "muted", text: m.untrainedFaces.toLocaleString() + " confirmed faces have no learned data (too small or blurry), so only photo-based checks apply to them." }));
+  }
+  for (const w of m.warnings) $("warnings").append(el("div", { class: "panel warn", text: w }));
+  if (!m.collection) $("warnings").append(el("div", { class: "panel warn", text: "No collection folder is configured, so photos are not shown. Set DIGIKAM_COLLECTION to see them." }));
+
+  if (m.orphanRows) {
+    $("orphans").append(el("p", { text: m.orphanRows.toLocaleString() + " learned faces no longer belong to any tagged face (the photo was deleted, the face box moved, or the tag changed). They still influence recognition but cannot be shown here. digiKam’s Maintenance tool for faces can rebuild the learned data from your confirmed faces (option names vary by version)." }));
+    const table = el("table", {}, el("tr", {}, el("th", { text: "Person" }), el("th", { text: "Rows" })));
+    for (const o of DATA.orphans) table.append(el("tr", {}, el("td", { text: o.person }), el("td", { text: String(o.count) })));
+    $("orphans").append(table);
+  } else {
+    $("orphans").append(el("p", { class: "muted", text: "None." }));
+  }
+  $("filter").addEventListener("input", applyFilter);
+  $("hideReviewed").addEventListener("change", applyFilter);
+  $("more").addEventListener("click", showMore);
+  applyFilter();
+}
+init();
+</script>
+</body>
+</html>

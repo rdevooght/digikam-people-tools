@@ -2,6 +2,8 @@
 
 A small, private app for exploring a digiKam collection through its people tags. Python exports the relevant SQLite data; a dependency-free static web app does the rest.
 
+> **Looking for mistakes in your face tags?** See [`suspects/`](suspects/README.md): a separate, read-only tool that flags confirmed face tags that are probably wrong. It does not use the explorer below.
+
 ## Quick start
 
 
@@ -117,6 +119,7 @@ No test dependencies beyond Python and Node.js:
 ```bash
 python3 -m unittest discover -s tests -v
 node --test tests/analytics.test.js
+node --test tests/suspect_report.test.js   # suspect-tags report geometry
 ```
 
 The Python tests create temporary databases using `schema.sql` and cover tag discovery, custom roots, date fallback, unknown tags, empty collections, safe script output, and read-only behavior. The Node tests independently check intersections, both percentage denominators, zero periods, undated photos, and companion rankings.
@@ -135,9 +138,16 @@ digikam-people/
 │   ├── analytics.js       # Pure counting/intersection functions
 │   ├── app.js             # UI, SVG charts, selection, CSV export
 │   └── data.js            # Generated export; initially synthetic demo data
+├── suspects/              # Separate tool: find face tags that are probably wrong
+│   ├── find_suspects.py
+│   ├── report_template.html
+│   └── README.md
+├── .env.example           # Settings for the suspects tool
 └── tests/
     ├── test_extract.py
-    └── analytics.test.js
+    ├── analytics.test.js
+    ├── test_find_suspects.py
+    └── suspect_report.test.js
 ```
 
 ## Troubleshooting
